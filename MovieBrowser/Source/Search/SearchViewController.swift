@@ -17,10 +17,7 @@ class SearchViewController: UIViewController {
     private var activityIndicator = ActivityVC()
     private var movieList = MovieList()
     private var subscriptions = Set<AnyCancellable>()
-
-    required init?(coder: NSCoder) {
-        super.init(coder: coder)
-    }
+    private var noData = false
 
     // MARK: - UIViewController Overrides
     override func viewDidLoad() {
@@ -29,26 +26,43 @@ class SearchViewController: UIViewController {
         title = NSLocalizedString("Movie Search", comment: "")
         
         movieList.currentState
-            .removeDuplicates()
-            .sink { state in
-            switch state {
-            case .isFetching, .isSearching:
-                self.activityIndicator.show(in: self)
-            case .idle:
-                self.activityIndicator.hide()
+            .sink { [unowned self] state in
+                switch state {
+                case .isFetching, .isSearching:
+                    self.activityIndicator.show(in: self)
+                case let .idle(model):
+                    self.activityIndicator.hide()
+
+                    if let model = model, model.results.isEmpty {
+                        noData = true
+                        self.tableView.reloadData()
+                    } else {
+                        noData = false
+                    }
+                }
             }
-        }
-        .store(in: &subscriptions)
+            .store(in: &subscriptions)
 
         movieList.movies
-            .sink { _ in
+            .sink { [unowned self] _ in
             self.tableView.reloadData()
         }
         .store(in: &subscriptions)
 
-        // TODO: Combine search bar
+        bindSearchBar()
+    }
 
-        movieList.startSearch(for: "Star Wars")
+    private func bindSearchBar() {
+        let publisher = NotificationCenter
+            .default
+            .publisher(for: UISearchTextField.textDidChangeNotification, object: searchBar.searchTextField)
+        publisher
+            .map { ($0.object as! UISearchTextField).text }
+            .debounce(for: .milliseconds(500), scheduler: RunLoop.main)
+            .sink { [unowned self] searchText in
+                self.movieList.startSearch(for: searchText ?? "")
+            }
+            .store(in: &subscriptions)
     }
 }
 
@@ -61,11 +75,16 @@ extension SearchViewController: UITableViewDataSource {
     }
 
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        let count = movieList.movies.value.count    // TODO: simplify
-        return count
+        movieList.movies.value.count
     }
 }
 
 extension SearchViewController: UITableViewDelegate {
-
+    func tableView(_ tableView: UITableView, titleForFooterInSection section: Int) -> String? {
+        if noData {
+            return "No Data"
+        } else {
+            return nil
+        }
+    }
 }

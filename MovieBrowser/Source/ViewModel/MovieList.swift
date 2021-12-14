@@ -20,9 +20,8 @@ class MovieList: ObservableObject {
     private(set) var currentState = CurrentValueSubject<State, Never>(.idle(model: nil))
     private(set) var lastFetchedPage: Int = 0 // Zero means we haven't issue a fetch yet.
     private var logger = Logger(subsystem: "\(Bundle.main.loggingId)", category: "App")
-    private(set) var searchTerm: String = ""
     private var searchOperation: AnyCancellable?
-    private(set) var searchText = CurrentValueSubject<String, Never>("")
+    private var searchTerm: String?
     private var totalPages: Int = 0
     private var totalResults: Int = 0
 
@@ -34,33 +33,54 @@ class MovieList: ObservableObject {
             // term and continue. If the old state and the new state are identical, do nothing and return.
             // Otherwise, proceed with he action to the state change.
             switch (oldValue, state) {
-            case (.idle, .idle), (.isFetching, .isFetching):
+                // Consecutive idle events are possible if we are asked to start a search with an empty search-term.
+                // In this case we clear our state so as to display nothing.
+            case (.idle, .idle):
+                resetInternalState()
+
+                // Invalid transitions. The current operation must complete and it associated result must be returned.
+            case (.isFetching, .isFetching), (.isSearching, .isSearching), (.isSearching, .isFetching), (.isFetching, .isSearching):
                 return
 
-            case let (.isSearching(oldSearchTerm), .isSearching(searchTerm)):
-                if oldSearchTerm == searchTerm { return }
-                searchOperation?.cancel()
-                searchOperation = search(for: searchTerm)
-
-            case (_, .idle(model: let model)):
-                guard let model = model else { return }
-
-                if model.page == 1 {
-                    // We successfully fetched the first page of data. Overwrite existing internal state.
+                // Completion of a search results in updating our internal state (totalPages, totalResults, lastFetchedPage,
+                // and movies), unless the result was an error. In that case, the internal state is unchanged. In the
+                // case where no data is returned, the state is updated with zeros in order to indicate this. Arguably,
+                // this might be better modeled as a separate state but I'm not doing that in this initial pass.
+            case (.isSearching, .idle(model: let model)):
+                if let model = model {
+                    assert(model.page == 1)
+                    // We successfully fetched the first page of data. Overwrite existing internal state. Note that if
+                    // there was no data, then all state except `model.page` will be zero (observed).
+                    lastFetchedPage = model.page
                     totalPages = model.totalPages
                     totalResults = model.totalResults
                     movies.send(model.results)
-                } else {
-                    // We successfully fetched an additional page of data. Append to existing internal state.
-                    //movies.append(contentsOf: model.results) // FIXME: Memory management!
+                } /* else { // Error state: Let's not wipe; see how the UI behaves.
+                    resetInternalState()
+                } */
+
+                // Completion of a fetch results in updating our internal state, unless the result was an error. In the
+                // case where no data is returned, we also intentionally do not update the internal state. This would
+                // clear existing results from previous pages unnecessarily.
+            case (.isFetching, .idle(model: let model)):
+                if let model = model {
+                    // FIXME: This operation can potentially exhaust device memory!
+                    lastFetchedPage = model.page
+                    totalPages = model.totalPages
+                    totalResults = model.totalResults
+                    var newMovies = movies.value
+                    newMovies.append(contentsOf: model.results)
+                    movies.send(newMovies)
                 }
 
-            case (_, .isSearching(searchTerm: let searchTerm)):
+            case (.idle, .isSearching(searchTerm: let searchTerm)):
+                self.searchTerm = searchTerm
                 searchOperation = search(for: searchTerm)
 
-            case (_, .isFetching(page: let page)):
-                fetch(page: page)
+            case (.idle, .isFetching(page: let page)):
+                searchOperation = fetch(page: page)
             }
+
             currentState.send(state)
         }
     }
@@ -71,24 +91,52 @@ class MovieList: ObservableObject {
         // FIXME: Remove if unused!
     }
 
-    private func fetch(page: Int) {
-        // TODO: We need to handle paging.
+    private func fetch(page: Int) -> AnyCancellable {
+        // NOTE: FSM should protect against a search without a valid pre-existing search-term.
+        return Network.shared.searchMovies(for: searchTerm!, page: page)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] completion in
+                guard let self = self else { return }
+                if case let .failure(error) = completion {
+                    self.logger.debug("Fetch for \(self.searchTerm!), page \(page) failed with error: \(error.localizedDescription)")
+                    self.state = .idle(model: nil)
+                }
+            } receiveValue: { [weak self] movieSearchResults in
+                self?.state = .idle(model: movieSearchResults)
+            }
+    }
+
+    private func resetInternalState() {
+        searchOperation?.cancel()
+        lastFetchedPage = 0
+        totalPages = 0
+        totalResults = 0
+        movies.send([])
     }
 
     private func search(for searchTerm: String) -> AnyCancellable {
         Network.shared.searchMovies(for: searchTerm)
             .receive(on: RunLoop.main)
             .sink { [weak self] completion in
-            if case let .failure(error) = completion {
-                self?.logger.debug("Search for \(searchTerm) failed with error: \(error.localizedDescription)")
-                self?.state = .idle(model: nil)
+                if case let .failure(error) = completion {
+                    self?.logger.debug("Search for \(searchTerm) failed with error: \(error.localizedDescription)")
+                    self?.state = .idle(model: nil)
+                }
+            } receiveValue: { [weak self] movieSearchResults in
+                self?.state = .idle(model: movieSearchResults)
             }
-        } receiveValue: { [weak self] movieSearchResults in
-            self?.state = .idle(model: movieSearchResults)
-        }
+    }
+
+    public func fetchNextPage() {
+        guard lastFetchedPage != 0 else { return }
+        state = .isFetching(page: lastFetchedPage + 1)
     }
 
     public func startSearch(for searchTerm: String) {
+        guard !searchTerm.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            state = .idle(model: nil)
+            return
+        }
         state = .isSearching(searchTerm: searchTerm)
     }
 }
