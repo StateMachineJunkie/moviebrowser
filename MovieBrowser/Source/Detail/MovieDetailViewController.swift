@@ -2,8 +2,8 @@
 //  MovieDetailViewController.swift
 //  SampleApp
 //
-//  Created by Struzinski, Mark on 2/26/21.
-//  Copyright © 2021 Lowe's Home Improvement. All rights reserved.
+//  Created by Michael A. Crawford on 12/13/21.
+//  Copyright © 2021 CDE, LLC. All rights reserved.
 //
 
 import Combine

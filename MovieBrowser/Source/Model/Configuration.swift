@@ -3,7 +3,7 @@
 //  MovieBrowser
 //
 //  Created by Michael A. Crawford on 12/13/21.
-//  Copyright © 2021 Lowe's Home Improvement. All rights reserved.
+//  Copyright © 2021 CDE, LLC. All rights reserved.
 //
 
 import Foundation

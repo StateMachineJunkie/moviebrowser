@@ -2,7 +2,7 @@
 //  UIViewControllerExtension.swift
 //
 //  Created by Michael A. Crawford on 8/14/19.
-//  Copyright © 2019 The Diary Corporation. All rights reserved.
+//  Copyright © 2021 CDE, LLC. All rights reserved.
 //
 
 import UIKit

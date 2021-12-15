@@ -2,8 +2,8 @@
 //  Network.swift
 //  SampleApp
 //
-//  Created by Struzinski, Mark - Mark on 9/17/20.
-//  Copyright © 2020 Lowe's Home Improvement. All rights reserved.
+//  Created by Michael A. Crawford on 12/13/21.
+//  Copyright © 2021 CDE, LLC. All rights reserved.
 //
 
 import Combine
