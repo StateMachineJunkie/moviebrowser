@@ -11,6 +11,7 @@ import UIKit
 
 class SearchViewController: UIViewController {
 
+    @IBOutlet weak var goButton: UIButton!
     @IBOutlet weak var searchBar: UISearchBar!
     @IBOutlet weak var tableView: UITableView!
 
@@ -26,6 +27,10 @@ class SearchViewController: UIViewController {
         configureNavigationBar()
         bindMovieList()
         bindSearchBar()
+    }
+
+    @IBAction func didTapGoButton(_ sender: Any) {
+        self.movieList.startSearch(for: searchBar.searchTextField.text ?? "")
     }
 
     private func bindMovieList() {
@@ -65,14 +70,17 @@ class SearchViewController: UIViewController {
     }
 
     private func bindSearchBar() {
-        NotificationCenter
+        let publisher = NotificationCenter
             .default
             .publisher(for: UISearchTextField.textDidChangeNotification, object: searchBar.searchTextField)
-            .map { ($0.object as! UISearchTextField).text }
+        publisher
             .debounce(for: .milliseconds(500), scheduler: RunLoop.main)
-            .sink { [unowned self] searchText in
-                self.movieList.startSearch(for: searchText ?? "")
+            .map { (notification) -> Bool in
+                let textField = notification.object as! UISearchTextField
+                guard let text = textField.text?.trimmingCharacters(in: .whitespacesAndNewlines) else { return false }
+                return !text.isEmpty
             }
+            .assign(to: \.isEnabled, on: goButton)
             .store(in: &subscriptions)
     }
 

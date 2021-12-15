@@ -141,7 +141,8 @@ class Network {
                 do {
                     let model = try Network.shared.jsonDecoder.decode(MovieSearchResults.self, from: data)
                     promise(.success(model))
-                } catch {
+                } catch let error {
+                    print(error)
                     promise(.failure(error))
                 }
             }
