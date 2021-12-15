@@ -15,13 +15,17 @@ class MovieList: ObservableObject {
         case idle(model: MovieSearchResults?)
         case isSearching(searchTerm: String)
         case isFetching(page: Int)
+        case isLoadingConfig
+        case configLoadFailure(error: NetworkError)
     }
 
+    private(set) var configuration: Configuration?
     private(set) var currentState = CurrentValueSubject<State, Never>(.idle(model: nil))
     private(set) var lastFetchedPage: Int = 0 // Zero means we haven't issue a fetch yet.
     private var logger = Logger(subsystem: "\(Bundle.main.loggingId)", category: "App")
     private var searchOperation: AnyCancellable?
     private var searchTerm: String?
+    private var subscriptions = Set<AnyCancellable>()
     private var totalPages: Int = 0
     private var totalResults: Int = 0
 
@@ -33,13 +37,22 @@ class MovieList: ObservableObject {
             // term and continue. If the old state and the new state are identical, do nothing and return.
             // Otherwise, proceed with he action to the state change.
             switch (oldValue, state) {
+                // We start out in the state required to load the network API configuration.
+            case (_, .isLoadingConfig):
+                loadConfig()
+
+                // Successful load; do nothing.
+            case (.isLoadingConfig, .idle):
+                break
+
                 // Consecutive idle events are possible if we are asked to start a search with an empty search-term.
                 // In this case we clear our state so as to display nothing.
             case (.idle, .idle):
                 resetInternalState()
 
                 // Invalid transitions. The current operation must complete and it associated result must be returned.
-            case (.isFetching, .isFetching), (.isSearching, .isSearching), (.isSearching, .isFetching), (.isFetching, .isSearching):
+            case (.isFetching, .isFetching), (.isSearching, .isSearching), (.isSearching, .isFetching),
+                (.isFetching, .isSearching), (.isLoadingConfig, .isSearching), (.isLoadingConfig, .isFetching):
                 return
 
                 // Completion of a search results in updating our internal state (totalPages, totalResults, lastFetchedPage,
@@ -55,9 +68,7 @@ class MovieList: ObservableObject {
                     totalPages = model.totalPages
                     totalResults = model.totalResults
                     movies.send(model.results)
-                } /* else { // Error state: Let's not wipe; see how the UI behaves.
-                    resetInternalState()
-                } */
+                }
 
                 // Completion of a fetch results in updating our internal state, unless the result was an error. In the
                 // case where no data is returned, we also intentionally do not update the internal state. This would
@@ -79,6 +90,12 @@ class MovieList: ObservableObject {
 
             case (.idle, .isFetching(page: let page)):
                 searchOperation = fetch(page: page)
+
+            case (_, .configLoadFailure):
+                break
+
+            case (.configLoadFailure, _):
+                state = .idle(model: nil)
             }
 
             currentState.send(state)
@@ -86,10 +103,6 @@ class MovieList: ObservableObject {
     }
 
     var movies = CurrentValueSubject<[Movie], Never>([Movie]())
-
-    init() {
-        // FIXME: Remove if unused!
-    }
 
     private func fetch(page: Int) -> AnyCancellable {
         // NOTE: FSM should protect against a search without a valid pre-existing search-term.
@@ -104,6 +117,27 @@ class MovieList: ObservableObject {
             } receiveValue: { [weak self] movieSearchResults in
                 self?.state = .idle(model: movieSearchResults)
             }
+    }
+
+    private func loadConfig() {
+        #if true
+        Network.shared.getAPIConfig()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] completion in
+                if case let .failure(error) = completion {
+                    let networkError = NetworkError(statusMessage: error.localizedDescription, statusCode: -1)
+                    self?.state = .configLoadFailure(error: networkError)
+                }
+            } receiveValue: { [weak self] config in
+                self?.configuration = config
+                self?.state = .idle(model: nil)
+            }
+            .store(in: &subscriptions)
+        #else
+        DispatchQueue.main.async {
+            self.state = .configLoadFailure(error: NetworkError(statusMessage: "Test", statusCode: -999))
+        }
+        #endif
     }
 
     private func resetInternalState() {
@@ -132,6 +166,15 @@ class MovieList: ObservableObject {
         state = .isFetching(page: lastFetchedPage + 1)
     }
 
+    public func resetConfigError() {
+        guard case .configLoadFailure = state else { return }
+        state = .idle(model: nil)
+    }
+
+    public func start() {
+        state = .isLoadingConfig
+    }
+
     public func startSearch(for searchTerm: String) {
         guard !searchTerm.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             state = .idle(model: nil)
@@ -158,6 +201,12 @@ extension MovieList.State: CustomStringConvertible {
 
         case let .isFetching(page: page):
             return "Is fetching page \(page)."
+
+        case .isLoadingConfig:
+            return "Is loading network config."
+
+        case let .configLoadFailure(error: error):
+            return "Is configuration load failure: error = \(error.localizedDescription)"
         }
     }
 }

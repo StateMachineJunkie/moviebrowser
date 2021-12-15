@@ -28,7 +28,7 @@ class SearchViewController: UIViewController {
         movieList.currentState
             .sink { [unowned self] state in
                 switch state {
-                case .isFetching, .isSearching:
+                case .isFetching, .isSearching, .isLoadingConfig:
                     self.activityIndicator.show(in: self)
                 case let .idle(model):
                     self.activityIndicator.hide()
@@ -39,6 +39,14 @@ class SearchViewController: UIViewController {
                     } else {
                         noData = false
                     }
+                case .configLoadFailure(error: let error):
+                    let message = """
+                    I was unable to load the network configuration. This means that I will not be able to display movie
+                    posters. Instead you will see a common place-holder image. Sorry for the inconvenience.
+                    """
+                    self.alertOk(error.localizedDescription, message: NSLocalizedString(message, comment: ""), completion: { [unowned self] in
+                        self.movieList.resetConfigError()
+                    })
                 }
             }
             .store(in: &subscriptions)
@@ -48,6 +56,8 @@ class SearchViewController: UIViewController {
             self.tableView.reloadData()
         }
         .store(in: &subscriptions)
+
+        movieList.start()
 
         bindSearchBar()
     }
@@ -80,6 +90,16 @@ extension SearchViewController: UITableViewDataSource {
 }
 
 extension SearchViewController: UITableViewDelegate {
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        tableView.deselectRow(at: indexPath, animated: true)
+        let movie = movieList.movies.value[indexPath.row]
+        let storyboard = UIStoryboard(name: "MovieDetail", bundle: Bundle.main)
+        let controller = storyboard.instantiateInitialViewController() as! MovieDetailViewController
+        controller.configuration = movieList.configuration
+        controller.movie = movie
+        navigationController?.pushViewController(controller, animated: true)
+    }
+
     func tableView(_ tableView: UITableView, titleForFooterInSection section: Int) -> String? {
         if noData {
             return "No Data"

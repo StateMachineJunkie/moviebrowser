@@ -8,7 +8,7 @@
 
 import Foundation
 
-struct NetworkError: Codable, Equatable {
+struct NetworkError: Codable, Equatable, Error {
     let statusMessage: String
     let statusCode: Int
 }

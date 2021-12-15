@@ -14,8 +14,8 @@ struct Configuration: Codable, Equatable {
 }
 
 struct ImageConfig: Codable, Equatable {
-    let baseUrl: URL
-    let secureBaseUrl: URL
+    let baseUrl: String
+    let secureBaseUrl: String
     let backdropSizes: [String]
     let logoSizes: [String]
     let posterSizes: [String]
