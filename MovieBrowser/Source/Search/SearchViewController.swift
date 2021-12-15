@@ -22,9 +22,13 @@ class SearchViewController: UIViewController {
     // MARK: - UIViewController Overrides
     override func viewDidLoad() {
         super.viewDidLoad()
+        configureTableView()
+        configureNavigationBar()
+        bindMovieList()
+        bindSearchBar()
+    }
 
-        title = NSLocalizedString("Movie Search", comment: "")
-        
+    private func bindMovieList() {
         movieList.currentState
             .sink { [unowned self] state in
                 switch state {
@@ -58,21 +62,31 @@ class SearchViewController: UIViewController {
         .store(in: &subscriptions)
 
         movieList.start()
-
-        bindSearchBar()
     }
 
     private func bindSearchBar() {
-        let publisher = NotificationCenter
+        NotificationCenter
             .default
             .publisher(for: UISearchTextField.textDidChangeNotification, object: searchBar.searchTextField)
-        publisher
             .map { ($0.object as! UISearchTextField).text }
             .debounce(for: .milliseconds(500), scheduler: RunLoop.main)
             .sink { [unowned self] searchText in
                 self.movieList.startSearch(for: searchText ?? "")
             }
             .store(in: &subscriptions)
+    }
+
+    private func configureNavigationBar() {
+        let appearance = UINavigationBarAppearance()
+        appearance.configureWithOpaqueBackground()
+        appearance.backgroundColor = .systemBlue
+        navigationController?.navigationBar.standardAppearance = appearance
+        navigationController?.navigationBar.scrollEdgeAppearance = navigationController?.navigationBar.standardAppearance
+    }
+
+    private func configureTableView() {
+        title = NSLocalizedString("Movie Search", comment: "")
+        tableView.keyboardDismissMode = .onDrag
     }
 }
 

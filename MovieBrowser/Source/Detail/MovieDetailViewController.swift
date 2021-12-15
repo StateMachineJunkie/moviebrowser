@@ -58,8 +58,10 @@ class MovieDetailViewController: UIViewController {
         guard let url = URL(string: path) else { return }
         publisher = ImageLoader.shared.loadImage(from: url)
             .sink { [weak self] image in
-                if let image = image {
-                    self?.posterImageView.image = image
+                if let posterImageView = self?.posterImageView, let image = image {
+                    UIView.transition(with: posterImageView, duration: 0.25, options: /*.transitionCrossDissolve*/ .transitionFlipFromLeft, animations: {
+                        posterImageView.image = image
+                    })
                 }
             }
     }
