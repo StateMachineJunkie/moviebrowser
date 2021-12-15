@@ -25,7 +25,12 @@ class MovieCell: UITableViewCell {
 
     func configure(with movie: Movie) {
         titleLabel.text = movie.title
-        releaseDateLabel.text = Self.dateFormatter.string(from: movie.releaseDate)
         popularityLabel.text = String(round(movie.popularity))
+
+        if let releaseDate = movie.releaseDate {
+            releaseDateLabel.text = Self.dateFormatter.string(from: releaseDate)
+        } else {
+            releaseDateLabel.text = NSLocalizedString("Unknown", comment: "")
+        }
     }
 }

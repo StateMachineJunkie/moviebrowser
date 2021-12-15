@@ -22,7 +22,7 @@ class MovieList: ObservableObject {
     private(set) var configuration: Configuration?
     private(set) var currentState = CurrentValueSubject<State, Never>(.idle(model: nil))
     private(set) var lastFetchedPage: Int = 0 // Zero means we haven't issue a fetch yet.
-    private var logger = Logger(subsystem: "\(Bundle.main.loggingId)", category: "App")
+    private var logger = Logger(subsystem: "\(Bundle.main.loggingId)", category: "MovieList")
     private var searchOperation: AnyCancellable?
     private var searchTerm: String?
     private var subscriptions = Set<AnyCancellable>()
@@ -33,9 +33,7 @@ class MovieList: ObservableObject {
         didSet {
             logger.debug("State: \(oldValue) -> \(self.state)")
 
-            // If old state and the current state are `isSearching`, update search operation with new search
-            // term and continue. If the old state and the new state are identical, do nothing and return.
-            // Otherwise, proceed with he action to the state change.
+            // This switch statement implements the state machine for MovieList.
             switch (oldValue, state) {
                 // We start out in the state required to load the network API configuration.
             case (_, .isLoadingConfig):
@@ -120,7 +118,6 @@ class MovieList: ObservableObject {
     }
 
     private func loadConfig() {
-        #if true
         Network.shared.getAPIConfig()
             .receive(on: RunLoop.main)
             .sink { [weak self] completion in
@@ -133,11 +130,6 @@ class MovieList: ObservableObject {
                 self?.state = .idle(model: nil)
             }
             .store(in: &subscriptions)
-        #else
-        DispatchQueue.main.async {
-            self.state = .configLoadFailure(error: NetworkError(statusMessage: "Test", statusCode: -999))
-        }
-        #endif
     }
 
     private func resetInternalState() {
@@ -186,7 +178,7 @@ class MovieList: ObservableObject {
 
 extension MovieList.State: CustomStringConvertible {
     /// For debugging purposes, I want to monitor state transitions in the console. Conforming to `CustomStringConvertible`
-    /// make this possible in combination with the new `Logger` API for iOS 15.
+    /// make this possible in combination with the new `Logger` API for iOS 14.
     var description: String {
         switch self {
         case let .idle(model: model):
