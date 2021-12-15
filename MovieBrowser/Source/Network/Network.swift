@@ -7,6 +7,7 @@
 //
 
 import Combine
+import os.log
 import Foundation
 
 class Network {
@@ -51,10 +52,13 @@ class Network {
         let container = try decoder.singleValueContainer()
         var dateString = try container.decode(String.self)
         guard let date = Network.shared.dateFormatter.date(from: dateString) else {
+            logger.fault("While decoding date information the given date value is not in the expected format.")
             throw DecodingError.dataCorruptedError(in: container, debugDescription: "The date value is not in the expected format!")
         }
         return date
     })
+
+    private static let logger = Logger(subsystem: "\(Bundle.main.loggingId)", category: "Network")
 
     var jsonDecoder: JSONDecoder = {
         let decoder = JSONDecoder()

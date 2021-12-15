@@ -34,9 +34,16 @@ class MovieDetailViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         titleLabel.text = movie.title
-        let date = movie.releaseDate
-        releaseDateLabel.text = "Release Date: \(Self.releaseDateFormatter.string(from: date))"
         overviewLabel.text = movie.overview
+
+        let releaseDatePrefix = NSLocalizedString("Release Date:", comment: "")
+        let releaseDateSuffix = NSLocalizedString("Unknown", comment: "")
+
+        if let date = movie.releaseDate {
+            releaseDateLabel.text = "\(releaseDatePrefix) \(Self.releaseDateFormatter.string(from: date))"
+        } else {
+            releaseDateLabel.text = "\(releaseDatePrefix) \(releaseDateSuffix)"
+        }
 
         guard let config = configuration else {
             logger.warning("API configuration is unavailable. Therefore movie posters will not be displayed.")
