@@ -1,0 +1,13 @@
+//
+//  Config.xcconfig
+//  MovieBrowser
+//
+//  Created by Michael A. Crawford on 11/22/21.
+//
+
+// Configuration settings file format documentation can be found at:
+// https://help.apple.com/xcode/#/dev745c5c974
+
+// Register with themoviedb.org in order to get your API key.
+API_BASE_URL = api.themoviedb.org/3
+//API_KEY = 1234567890abcdef1234567890abcdef
