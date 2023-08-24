@@ -141,3 +141,22 @@ extension SearchViewController: UISearchBarDelegate {
         }
     }
 }
+
+extension SearchViewController: UIScrollViewDelegate {
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        // We get lots of these callbacks when scrolling. Filter them based on the current state of the movieList.
+        guard case let .idle(model) = movieList.currentState.value else { return }
+
+        // Detect when the user is near the bottom of the table view
+        let contentOffsetY = scrollView.contentOffset.y
+        let contentHeight = scrollView.contentSize.height
+        let scrollViewHeight = scrollView.frame.height
+
+        if contentOffsetY + scrollViewHeight >= contentHeight - 100 {
+            // Load more data when the user is close to the bottom
+            if movieList.lastFetchedPage < movieList.totalPages {
+                movieList.fetchNextPage()
+            }
+        }
+    }
+}

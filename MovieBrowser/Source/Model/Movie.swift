@@ -18,10 +18,11 @@ struct Movie: Equatable, Identifiable {
     let originalLanguage: String
     let title: String
     let backdropPath: String?
-    let popularity: Double
-    let voteCount: Int
-    let video: Bool
-    let voteAverage: Double
+    let genreIds: [Int]?
+    let popularity: Double?
+    let voteCount: Int?
+    let video: Bool?
+    let voteAverage: Double?
 }
 
 extension Movie: Codable {
@@ -35,11 +36,12 @@ extension Movie: Codable {
         originalLanguage    = try container.decode(String.self, forKey: .originalLanguage)
         title               = try container.decode(String.self, forKey: .title)
         backdropPath        = try container.decodeIfPresent(String.self, forKey: .backdropPath)
-        popularity          = try container.decode(Double.self, forKey: .popularity)
-        voteCount           = try container.decode(Int.self, forKey: .voteCount)
-        video               = try container.decode(Bool.self, forKey: .video)
-        voteAverage         = try container.decode(Double.self, forKey: .voteAverage)
-        // We have to special-case this because TMDB sometimes sends a zero-length string for the date.
+        genreIds            = try container.decodeIfPresent([Int].self, forKey: .genreIds)
+        popularity          = try container.decodeIfPresent(Double.self, forKey: .popularity)
+        voteCount           = try container.decodeIfPresent(Int.self, forKey: .voteCount)
+        video               = try container.decodeIfPresent(Bool.self, forKey: .video)
+        voteAverage         = try container.decodeIfPresent(Double.self, forKey: .voteAverage)
+        // We have to special-case this because TMDB sometimes sends a zero-length string for the date instead of `null`.
         do {
             releaseDate = try container.decodeIfPresent(Date.self, forKey: .releaseDate)
         } catch {

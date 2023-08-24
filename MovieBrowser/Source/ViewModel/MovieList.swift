@@ -26,8 +26,8 @@ class MovieList: ObservableObject {
     private var searchOperation: AnyCancellable?
     private var searchTerm: String?
     private var subscriptions = Set<AnyCancellable>()
-    private var totalPages: Int = 0
-    private var totalResults: Int = 0
+    private(set) var totalPages: Int = 0
+    private(set) var totalResults: Int = 0
 
     private var state: State = .idle(model: nil) {
         didSet {
