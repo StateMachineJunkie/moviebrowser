@@ -21,5 +21,20 @@ If the result set is large enough, one could exhaust the available memory for th
 
 I'm sure someone else (perhaps you the reader) has an even better idea. In any case, I'm not going to take this any further. With regard to my original purpose for posting the code in the first place, It is "good enough."
 
+## Theory of Operation
+Understanding how the view-model works is important so I've drawn you a little state-machine diagram.
+
+![MovieList State Machine](MovieListFSM.pdf)
+
+The states are as follows:
+
+* **idle:** No activity; any data, if present is available for rendering by any observer. On entry to this state, if data is available, it will be displayed to the user. If there is no data then `NO DATA` will be displayed to the user.
+* **isLoadingConfig:** We have issued a network request to `MovieDB` in order to fetch the configuration, which is mainly used for fetching and displaying images (movie posters) associated with the results of a `MovieDB` query. This configuration is useful for making the most of the display canvas but I don't use it for that purpose since this is a sample app.
+* **configLoadFailure:** This is an error state. If entered, the app is dead-in-the-water. This should not normally happen and we don't do much but report the result to the console and just sit there. In a real app, you would need to handle this in a more robust way, perhaps notifying the user and then telling them to try again later, assuming the error was not the result of an internal (programmer) error.
+* **isSearching:** The user has entered a search-term into the input text-field and tapped the `GO` or `search` buttons. On entry to this state, we issue a `MovieDB` request with the search term and the registered user's API key as arguments. We will remain in this state until the request completes or times-out. At that time we will transition back to the **idle** state with the results of the API call. If not successful, the transition to **idle** will still occur and an error is logged to the console. The UI is not updated and the last results, if any will still be displayed.
+* **isFetching:** After the successful load of the first page of a given data-set, which is created by a search operation, the user can trigger a transition into this state by scrolling to the end of the displayed results, assuming more data is available. On entry to this state, we issue a `MovieDB` request to fetch the next page of the data-set. We will remain in this state until that request completes or times-out. At that time we will transition back to the **idle** state with the results of the API call appended to the existing result-set. If not successful, the transition to **idle** will still occur and an error is logged to the console. The UI is not updated and the last results, if any will still be displayed.
+
+To be sure, there are details that are not included here but the goal is to give you a high-level understanding about how the app works.
+
 ## License
 MovieBrowser is released under an MIT license. See [License.md](https://github.com/StateMachineJunkie/MovieBrowser/blob/master/License.md) for more information.
