@@ -24,7 +24,7 @@ I'm sure someone else (perhaps you the reader) has an even better idea. In any c
 ## Theory of Operation
 Understanding how the view-model works is important so I've drawn you a little state-machine diagram.
 
-![MovieList State Machine](MovieListFSM.pdf)
+![MovieList State Machine](MovieListFSM.png)
 
 The states are as follows:
 
